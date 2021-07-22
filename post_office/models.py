@@ -1,6 +1,7 @@
 import os
 
 from collections import namedtuple
+import magic
 from uuid import uuid4
 from email.mime.nonmultipart import MIMENonMultipart
 
@@ -22,7 +23,29 @@ from .validators import validate_email_with_name, validate_template_syntax
 
 PRIORITY = namedtuple('PRIORITY', 'low medium high now')._make(range(4))
 STATUS = namedtuple('STATUS', 'sent failed queued requeued')._make(range(4))
+TIPOS_PERMITIDOS = [
+    "text/csv",  # Comma-separated values (CSV)
+    "application/msword",  # Microsoft Word
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # Microsoft Word (OpenXML)
+    "application/pdf",  # Adobe Portable Document Format (PDF)
+    "application/vnd.ms-powerpoint",  # Microsoft PowerPoint
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # Microsoft PowerPoint (OpenXML)
+    "text/plain",  # Text, (generally ASCII or ISO 8859-n)
+    "application/vnd.ms-excel",  # Microsoft Excel
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # Microsoft Excel (OpenXML)
+]
 
+EXTENSIONES_PERMITIDAS = [
+    ".pdf",
+    ".csv",
+    ".txt",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+]
 
 class Email(models.Model):
     """
@@ -316,6 +339,16 @@ class Attachment(models.Model):
         app_label = 'post_office'
         verbose_name = _("Attachment")
         verbose_name_plural = _("Attachments")
+
+    def clean(self):
+        if not self.file.name.lower().endswith(
+            tuple(EXTENSIONES_PERMITIDAS)
+        ):
+            raise ValidationError("Fichero con extension invalida.")
+        else:
+            mime = magic.from_buffer(self.file.file.read(), mime=True)
+            if mime not in TIPOS_PERMITIDOS:
+                raise ValidationError(f"Tipo fichero invalido. {mime}")
 
     def __str__(self):
         return self.name
